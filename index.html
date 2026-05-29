@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-[#0D0D0D]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OficinaOS — Sistema de Gestão</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0D0D0D',
+                        surface: '#181818',
+                        surface2: '#202020',
+                        surface3: '#292929',
+                        border: '#2C2C2C',
+                        accent: '#F97316',
+                        accentHover: '#FB923C',
+                        textMain: '#F2F0ED',
+                        textMuted: '#9D9892',
+                        textDim: '#5C5854',
+                        success: '#4ADE80',
+                        warning: '#FBBF24',
+                        info: '#60A5FA',
+                        error: '#F87171',
+                    },
+                    fontFamily: {
+                        rajdhani: ['Rajdhani', 'sans-serif'],
+                        inter: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply font-inter text-textMain; }
+            h1, h2, h3 { @apply font-rajdhani; }
+        }
+        @media print {
+            body > * { display: none !important; }
+            #prt { display: block !important; position: fixed; top: 0; left: 0; width: 100%; padding: 18mm 20mm; background: white; color: black; }
+            .po-hd { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; margin-bottom: 14px; padding-bottom: 14px; }
+            .po-sc { background: black; color: white; padding: 4px 10px; font-weight: bold; text-transform: uppercase; margin: 12px 0 8px; display: inline-block; }
+            .po-tb { width: 100%; border-collapse: collapse; }
+            .po-tb th, .po-tb td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+            .po-tb th { background: #f0f0f0; }
+            .po-tot { display: flex; justify-content: flex-end; margin-top: 8px; }
+            .po-tb-box { border: 1px solid #ccc; padding: 8px 14px; min-width: 210px; }
+            .po-tr { display: flex; justify-content: space-between; }
+            .po-tr.big { border-top: 2px solid black; font-weight: bold; font-size: 16px; margin-top: 4px; padding-top: 6px; }
+            .po-sgs { display: flex; justify-content: space-around; margin-top: 50px; text-align: center; }
+            .po-sgl { border-top: 1px solid black; padding-top: 6px; margin-top: 50px; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col md:flex-row">
+
+<!-- Auth Overlay -->
+<div id="auth-ov" class="fixed inset-0 z-[100] flex items-center justify-center bg-dark p-4">
+    <div class="w-full max-w-md bg-surface border border-border rounded-xl p-8 text-center shadow-2xl">
+        <div class="text-3xl font-rajdhani font-bold text-accent mb-2">⚙ OFICINA<span class="text-textMain">OS</span></div>
+        <p class="text-textMuted text-sm mb-6">Entre para gerenciar sua oficina</p>
+        <div class="space-y-4 mb-6">
+            <div class="flex flex-col gap-1 text-left">
+                <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">E-mail</label>
+                <input type="email" id="auth-email" class="bg-surface2 border border-border rounded-lg p-2.5 text-textMain focus:border-accent outline-none transition-colors" placeholder="seu@email.com">
+            </div>
+            <div class="flex flex-col gap-1 text-left">
+                <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Senha</label>
+                <input type="password" id="auth-pass" class="bg-surface2 border border-border rounded-lg p-2.5 text-textMain focus:border-accent outline-none transition-colors" placeholder="••••••••">
+            </div>
+            <button onclick="handleLogin()" class="w-full bg-accent hover:bg-accentHover text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center gap-2">
+                Entrar no Sistema
+            </button>
+        </div>
+        <div id="auth-error" class="text-error text-xs hidden mb-4"></div>
+    </div>
+</div>
+
+<!-- Sidebar / Mobile Nav -->
+<aside class="fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border flex justify-around items-center p-2 md:relative md:w-60 md:h-full md:border-t-0 md:border-r md:flex-col md:justify-start md:p-4">
+    <div class="hidden md:block p-4 border-b border-border mb-4">
+        <div class="text-xl font-rajdhani font-bold text-accent tracking-wider">⚙ OFICINA<span class="text-textMain">OS</span></div>
+        <div class="text-[10px] text-textDim uppercase tracking-widest mt-0.5">Sistema de Gestão</div>
+    </div>
+    
+    <nav class="flex md:flex-col w-full gap-1">
+        <button onclick="nav('dashboard')" id="n-dashboard" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="hidden md:inline">Dashboard</span>
+        </button>
+    <button onclick="nav('vehicles')" id="n-vehicles" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0,0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M14 3v4h5"/></svg>
+        <span class="hidden md:inline">Veículos</span>
+    </button>
+    <button onclick="nav('inventory')" id="n-inventory" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M10 12h4"/></svg>
+        <span class="hidden md:inline">Estoque</span>
+    </button>
+    <button onclick="nav('pos')" id="n-pos" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span class="hidden md:inline">Caixa</span>
+    </button>
+    <button onclick="nav('orders')" id="n-orders" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span class="hidden md:inline">Ordens de Serviço</span>
+    </button>
+    <button onclick="nav('history')" id="n-history" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/><circle cx="12" cy="12" r="10"/></svg>
+        <span class="hidden md:inline">Histórico Vendas</span>
+    </button>
+    <button onclick="nav('settings')" id="n-settings" class="flex items-center gap-3 p-2 rounded-lg text-textMuted hover:bg-surface2 hover:text-textMain transition-all flex-1 md:flex-none text-xs font-medium">
+
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span class="hidden md:inline">Configurações</span>
+        </button>
+        <button onclick="handleLogout()" class="flex items-center gap-3 p-2 rounded-lg text-error hover:bg-error/10 transition-all flex-1 md:flex-none text-xs font-medium">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span class="hidden md:inline">Sair</span>
+        </button>
+    </nav>
+    <div class="hidden md:flex flex-col p-4 mt-auto border-t border-border w-full">
+        <div class="text-[10px] text-textDim uppercase tracking-widest mb-1">Oficina</div>
+        <div id="sb-wn" class="text-xs font-semibold text-textMain truncate mb-2">—</div>
+        <div class="flex items-center gap-2">
+            <div id="sb-dot" class="w-1.5 h-1.5 rounded-full bg-textDim transition-colors"></div>
+            <span id="sb-conn" class="text-[10px] text-textDim">Conectando...</span>
+        </div>
+    </div>
+</aside>
+
+<main id="ct" class="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-x-hidden"></main>
+
+<!-- Vehicle Modal -->
+<div id="vm" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 p-4 overflow-y-auto">
+    <div class="bg-surface border border-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="sticky top-0 bg-surface border-b border-border p-4 flex items-center justify-between z-10">
+            <h2 id="vm-tit" class="text-xl font-rajdhani font-bold">Registrar Veículo</h2>
+            <button onclick="closeModal('vm')" class="p-1 text-textMuted hover:text-textMain transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-6">
+            <input type="hidden" id="vm-id">
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">🚗 Dados do Veículo</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Placa *</label>
+                        <input type="text" id="vm-plate" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="ABC1D23" maxlength="8" oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Modelo *</label>
+                        <input type="text" id="vm-model" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Ex: Gol, Civic, HB20">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Marca</label>
+                        <input type="text" id="vm-brand" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Ex: Volkswagen, Honda">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Ano</label>
+                        <input type="text" id="vm-year" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Ex: 2021">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Cor</label>
+                        <input type="text" id="vm-color" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Ex: Prata">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">KM Entrada</label>
+                        <input type="text" id="vm-km" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Ex: 52000">
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">👤 Dados do Cliente</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2 flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Nome do Cliente *</label>
+                        <input type="text" id="vm-cn" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Nome completo">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Telefone</label>
+                        <input type="text" id="vm-cp" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">CPF</label>
+                        <input type="text" id="vm-cc" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="000.000.000-00">
+                    </div>
+                    <div class="sm:col-span-2 flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">E-mail</label>
+                        <input type="email" id="vm-ce" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="email@exemplo.com">
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">🔧 Serviço</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2 flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Serviço Solicitado</label>
+                        <input type="text" id="vm-svc" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Ex: Revisão geral, troca de óleo, freios...">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Status</label>
+                        <select id="vm-st" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                            <option value="aguardando">Aguardando Avaliação</option>
+                            <option value="andamento">Em Andamento</option>
+                            <option value="pecas">Aguardando Peças</option>
+                            <option value="concluido">Concluído</option>
+                            <option value="entregue">Entregue</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Data de Entrada</label>
+                        <input type="date" id="vm-dt" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                    </div>
+                    <div class="sm:col-span-2 flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Observações</label>
+                        <textarea id="vm-obs" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Observações adicionais..."></textarea>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <div class="sticky bottom-0 bg-surface border-t border-border p-4 flex gap-3 justify-end">
+            <button onclick="closeModal('vm')" class="px-4 py-2 text-textMuted hover:text-textMain transition-colors font-medium text-sm">Cancelar</button>
+            <button id="vm-save-btn" onclick="saveVehicle()" class="bg-accent hover:bg-accentHover text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Salvar Veículo
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Modal -->
+<div id="im" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 p-4 overflow-y-auto">
+    <div class="bg-surface border border-border rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="sticky top-0 bg-surface border-b border-border p-4 flex items-center justify-between z-10">
+            <h2 id="im-tit" class="text-xl font-rajdhani font-bold">Cadastrar Peça</h2>
+            <button onclick="closeModal('im')" class="p-1 text-textMuted hover:text-textMain transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <input type="hidden" id="im-id">
+            <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Nome da Peça *</label>
+                <input type="text" id="im-name" class="bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" placeholder="Ex: Filtro de Óleo">
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Descrição</label>
+                <textarea id="im-desc" class="bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" placeholder="Detalhes da peça..."></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Qtd Atual</label>
+                    <input type="number" id="im-qty" class="bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" value="0">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Qtd Mínima</label>
+                    <input type="number" id="im-min" class="bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" value="5">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Preço Unit. (R$)</label>
+                    <input type="number" id="im-price" step="0.01" class="bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" value="0.00">
+                </div>
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Fornecedor</label>
+                <input type="text" id="im-sup" class="bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" placeholder="Nome do fornecedor">
+            </div>
+        </div>
+        <div class="sticky bottom-0 bg-surface border-t border-border p-4 flex gap-3 justify-end">
+            <button onclick="closeModal('im')" class="px-4 py-2 text-textMuted hover:text-textMain transition-colors font-medium text-sm">Cancelar</button>
+            <button id="im-save-btn" onclick="saveItem()" class="bg-accent hover:bg-accentHover text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Salvar Peça
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Order Modal -->
+<div id="om" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 p-4 overflow-y-auto">
+    <div class="bg-surface border border-border rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="sticky top-0 bg-surface border-b border-border p-4 flex items-center justify-between z-10">
+            <h2 id="om-tit" class="text-xl font-rajdhani font-bold">Nova Ordem de Serviço</h2>
+            <button onclick="closeModal('om')" class="p-1 text-textMuted hover:text-textMain transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-6">
+            <input type="hidden" id="om-id">
+            <input type="hidden" id="om-vid">
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">🚗 Dados do Veículo</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Placa *</label>
+                        <input type="text" id="om-plate" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="ABC1D23" oninput="this.value=this.value.toUpperCase();lookupV(this.value)">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Modelo</label>
+                        <input type="text" id="om-model" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Marca</label>
+                        <input type="text" id="om-brand" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                    </div>
+<div class="flex flex-col gap-1">
+    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Ano</label>
+    <input type="text" id="om-year" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+</div>
+<div class="flex flex-col gap-1">
+    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Cor</label>
+    <input type="text" id="om-color" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+</div>
+<div class="flex flex-col gap-1">
+    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">KM</label>
+    <input type="text" id="om-km" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+</div>
+<div class="flex flex-col gap-1">
+    <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Mecânico</label>
+    <input type="text" id="om-mech" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Nome do responsável">
+</div>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">👤 Dados do Cliente</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2 flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Nome do Cliente *</label>
+                        <input type="text" id="om-cn" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors" placeholder="Nome completo">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Telefone</label>
+                        <input type="text" id="om-cp" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">CPF</label>
+                        <input type="text" id="om-cc" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                    </div>
+                    <div class="sm:col-span-2 flex flex-col gap-1">
+                        <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Endereço</label>
+                        <input type="text" id="om-ca" class="bg-surface2 border border-border rounded-lg p-2 text-textMain focus:border-accent outline-none transition-colors">
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">🔧 Serviços e Peças</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="bg-surface2 text-textDim uppercase tracking-wider">
+                                <th class="p-2 border-b border-border">Descrição</th>
+                                <th class="p-2 border-b border-border w-20 text-center">Qtd</th>
+                                <th class="p-2 border-b border-border w-32 text-right">Unit. (R$)</th>
+                                <th class="p-2 border-b border-border w-32 text-right">Total (R$)</th>
+                                <th class="p-2 border-b border-border w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itb"></tbody>
+                    </table>
+                </div>
+                <button onclick="addItem()" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-transparent border border-border text-textMuted hover:text-textMain hover:bg-surface2 rounded-lg text-xs transition-all">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Adicionar Item
+                </button>
+                <div class="mt-4 bg-surface2 border border-border rounded-lg p-4 space-y-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Mão de Obra (R$)</label>
+                            <input type="number" id="om-labor" value="0" step="0.01" oninput="calcTot()" class="bg-surface border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Desconto (R$)</label>
+                            <input type="number" id="om-disc" value="0" step="0.01" oninput="calcTot()" class="bg-surface border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors">
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-xs text-textMuted">
+                        <span>Subtotal Peças/Serviços</span><span id="tot-sub">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-textMuted">
+                        <span>Mão de Obra</span><span id="tot-lab">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-error">
+                        <span>Desconto</span><span id="tot-dsc">- R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-lg font-rajdhani font-bold text-accent border-t border-border pt-2 mt-2">
+                        <span>TOTAL</span><span id="tot-ttl">R$ 0,00</span>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-xs font-rajdhani font-bold text-accent uppercase tracking-wider mb-3 border-b border-border pb-1">📝 Observações</h3>
+                <textarea id="om-obs" class="w-full bg-surface2 border border-border rounded-lg p-2 text-textMain outline-none focus:border-accent transition-colors" placeholder="Observações gerais..."></textarea>
+            </section>
+        </div>
+        <div class="sticky bottom-0 bg-surface border-t border-border p-4 flex gap-3 justify-end">
+            <button onclick="closeModal('om')" class="px-4 py-2 text-textMuted hover:text-textMain transition-colors font-medium text-sm">Cancelar</button>
+            <button id="om-save-btn" onclick="saveOrder()" class="bg-accent hover:bg-accentHover text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Salvar Ordem
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="loading" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 flex-col gap-4">
+    <div class="w-10 h-10 border-4 border-white/15 border-t-accent rounded-full animate-spin"></div>
+    <div id="loading-msg" class="text-textMuted text-sm">Carregando...</div>
+</div>
+<div id="prt" class="hidden"></div>
+<div id="toast" class="fixed bottom-6 right-6 bg-surface3 border border-border rounded-lg px-4 py-3 text-sm text-textMain z-[100] hidden animate-bounce"></div>
+
+<!-- Scripts de Configuração e Lógica -->
+<script src="./js/config.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>
